@@ -1,0 +1,112 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-01-23T22:59:37+01:00",
+    "name": "FiveM Game Egg",
+    "author": "santosmodsdev@gmail.com",
+    "description": "The SantosMods.dev FiveM Egg (FORK OF parker@parkervcp.com)",
+    "features": null,
+    "docker_images": {
+        "ghcr.io\/parkervcp\/yolks:debian": "ghcr.io\/parkervcp\/yolks:debian"
+    },
+    "file_denylist": [],
+    "startup": "$(pwd)\/alpine\/opt\/cfx-server\/ld-musl-x86_64.so.1 --library-path \"$(pwd)\/alpine\/usr\/lib\/v8\/:$(pwd)\/alpine\/lib\/:$(pwd)\/alpine\/usr\/lib\/\" -- $(pwd)\/alpine\/opt\/cfx-server\/FXServer +set citizen_dir $(pwd)\/alpine\/opt\/cfx-server\/citizen\/ +set sv_licenseKey {{FIVEM_LICENSE}} +set steam_webApiKey {{STEAM_WEBAPIKEY}} +set sv_maxplayers {{MAX_PLAYERS}} $( [ \"{{TXADMIN_ENABLE}}\" = \"1\" ] || printf '%s' '+exec server.cfg' )",
+    "config": {
+        "files": "{\r\n    \"server.cfg\": {\r\n        \"parser\": \"file\",\r\n        \"find\": {\r\n            \"endpoint_add_tcp\": \"endpoint_add_tcp \\\"0.0.0.0:{{server.build.default.port}}\\\"\",\r\n            \"endpoint_add_udp\": \"endpoint_add_udp \\\"0.0.0.0:{{server.build.default.port}}\\\"\",\r\n            \"sv_hostname\": \"sv_hostname \\\"{{server.build.env.SERVER_HOSTNAME}}\\\"\",\r\n            \"set sv_licenseKey\": \"set sv_licenseKey {{server.build.env.FIVEM_LICENSE}}\",\r\n            \"set steam_webApiKey\": \"set steam_webApiKey {{server.build.env.STEAM_WEBAPIKEY}}\",\r\n            \"sv_maxclients\": \"sv_maxclients {{server.build.env.MAX_PLAYERS}}\"\r\n        }\r\n    }\r\n}",
+        "startup": "{\r\n    \"done\": \"succeeded. Welcome!\"\r\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "set -euo pipefail\r\n\r\napt update -y\r\napt install -y tar xz-utils file jq unzip git curl\r\n\r\nSERVER_DIR=\"\/mnt\/server\"\r\nTMP_DIR=\"\/tmp\/cfx-server-data\"\r\nARTIFACT_FILE=\"fivem-artifact\"\r\n\r\nmkdir -p \"${SERVER_DIR}\/resources\"\r\ncd \"${SERVER_DIR}\"\r\n\r\necho \"[SantosMods] Updating CitizenFX base resources\"\r\n\r\nrm -rf \"${TMP_DIR}\"\r\ngit clone https:\/\/github.com\/citizenfx\/cfx-server-data.git \"${TMP_DIR}\"\r\ncp -Rf \"${TMP_DIR}\/resources\/\"* resources\/\r\nrm -rf \"${TMP_DIR}\"\r\n\r\nRELEASE_PAGE=$(curl -fsSL https:\/\/runtime.fivem.net\/artifacts\/fivem\/build_proot_linux\/master\/)\r\nCHANGELOGS_PAGE=$(curl -fsSL https:\/\/changelogs-live.fivem.net\/api\/changelog\/versions\/linux\/server)\r\n\r\nif [[ \"${FIVEM_VERSION:-recommended}\" == \"recommended\" ]]; then\r\n  DOWNLOAD_LINK=$(echo \"${CHANGELOGS_PAGE}\" | jq -r '.recommended_download')\r\nelif [[ \"${FIVEM_VERSION}\" == \"latest\" ]]; then\r\n  DOWNLOAD_LINK=$(echo \"${CHANGELOGS_PAGE}\" | jq -r '.latest_download')\r\nelse\r\n  VERSION_LINK=$(echo \"${RELEASE_PAGE}\" \\\r\n    | grep -Eo '\".*\/*.tar.xz\"' \\\r\n    | tr -d '\"' \\\r\n    | sed 's|\\.\/||' \\\r\n    | grep -i \"${FIVEM_VERSION}\" \\\r\n    | head -n1)\r\n\r\n  if [[ -z \"${VERSION_LINK}\" ]]; then\r\n    echo \"[SantosMods] Invalid version requested. Falling back to recommended.\"\r\n    DOWNLOAD_LINK=$(echo \"${CHANGELOGS_PAGE}\" | jq -r '.recommended_download')\r\n  else\r\n    DOWNLOAD_LINK=\"https:\/\/runtime.fivem.net\/artifacts\/fivem\/build_proot_linux\/master\/${VERSION_LINK}\"\r\n  fi\r\nfi\r\n\r\nif [[ -z \"${DOWNLOAD_LINK}\" || \"${DOWNLOAD_LINK}\" == \"null\" ]]; then\r\n  echo \"[SantosMods] Failed to resolve FiveM download link\"\r\n  exit 2\r\nfi\r\n\r\nif [[ -n \"${DOWNLOAD_URL:-}\" ]]; then\r\n  if curl --head --silent --fail \"${DOWNLOAD_URL}\" >\/dev\/null; then\r\n    echo \"[SantosMods] Custom download URL validated\"\r\n    DOWNLOAD_LINK=\"${DOWNLOAD_URL}\"\r\n  else\r\n    echo \"[SantosMods] Invalid custom download URL. Aborting.\"\r\n    exit 2\r\n  fi\r\nfi\r\n\r\necho \"[SantosMods] Downloading FiveM artifact\"\r\n\r\ncurl -fL \"${DOWNLOAD_LINK}\" -o \"${ARTIFACT_FILE}\"\r\n\r\necho \"[SantosMods] Extracting FiveM files\"\r\n\r\nFILETYPE=$(file -b \"${ARTIFACT_FILE}\")\r\n\r\nif echo \"${FILETYPE}\" | grep -qi gzip; then\r\n  tar xzf \"${ARTIFACT_FILE}\"\r\nelif echo \"${FILETYPE}\" | grep -qi zip; then\r\n  unzip -o \"${ARTIFACT_FILE}\"\r\nelif echo \"${FILETYPE}\" | grep -qi xz; then\r\n  tar xf \"${ARTIFACT_FILE}\"\r\nelse\r\n  echo \"[SantosMods] Unsupported archive format: ${FILETYPE}\"\r\n  exit 2\r\nfi\r\n\r\nrm -f \"${ARTIFACT_FILE}\"\r\n\r\nif [[ -f server.cfg ]]; then\r\n  echo \"[SantosMods] Existing server.cfg detected. Skipping.\"\r\nelse\r\n  echo \"[SantosMods] Downloading default server.cfg\"\r\n  curl -fsSL \\\r\n    https:\/\/raw.githubusercontent.com\/parkervcp\/eggs\/master\/game_eggs\/gta\/fivem\/server.cfg \\\r\n    -o server.cfg\r\nfi\r\n\r\nmkdir -p logs\/\r\n\r\necho \"[SantosMods] FiveM installation complete\"",
+            "container": "ghcr.io\/parkervcp\/installers:debian",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "fivem license",
+            "description": "Required to start the server.\r\nGet it from https:\/\/portal.cfx.re\/",
+            "env_variable": "FIVEM_LICENSE",
+            "default_value": "fivem_license_here",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:40",
+            "field_type": "text"
+        },
+        {
+            "name": "Max Players",
+            "description": "Sets the maximum number of concurrent FiveM players.",
+            "env_variable": "MAX_PLAYERS",
+            "default_value": "10",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|between:1,2800",
+            "field_type": "text"
+        },
+        {
+            "name": "Server Hostname",
+            "description": "Name shown in the FiveM server browser.",
+            "env_variable": "SERVER_HOSTNAME",
+            "default_value": "My new FXServer!",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "fivem version",
+            "description": "Build version to install.\r\nInvalid values fall back to the recommended build.",
+            "env_variable": "FIVEM_VERSION",
+            "default_value": "24769-315823736cfbc085104ca0d32779311cd2f1a5a8",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:100",
+            "field_type": "text"
+        },
+        {
+            "name": "Download Link",
+            "description": "Artifact URL used only by the install script.\r\nMust point to an fx.tar.xz file.",
+            "env_variable": "DOWNLOAD_URL",
+            "default_value": "https:\/\/runtime.fivem.net\/artifacts\/fivem\/build_proot_linux\/master\/24769-315823736cfbc085104ca0d32779311cd2f1a5a8\/fx.tar.xz",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "string|nullable",
+            "field_type": "text"
+        },
+        {
+            "name": "Steam Web Api Key",
+            "description": "Your Steam API key or set to none.\r\nGet it from https:\/\/steamcommunity.com\/dev\/apikey\/",
+            "env_variable": "STEAM_WEBAPIKEY",
+            "default_value": "none",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "txAdmin Port",
+            "description": "Port used by the txAdmin web panel.",
+            "env_variable": "TXHOST_TXA_PORT",
+            "default_value": "40120",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Enable txadmin",
+            "description": "Enable txAdmin\r\nSet to 1 to enable.\r\nSet to 0 to disable.",
+            "env_variable": "TXADMIN_ENABLE",
+            "default_value": "1",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        }
+    ]
+}
