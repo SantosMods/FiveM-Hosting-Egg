@@ -4,16 +4,16 @@
         "version": "PTDL_v2",
         "update_url": null
     },
-    "exported_at": "2026-01-23T22:59:37+01:00",
+    "exported_at": "2026-02-25T22:05:57+01:00",
     "name": "FiveM Game Egg",
     "author": "santosmodsdev@gmail.com",
-    "description": "The SantosMods.dev FiveM Egg (FORK OF parker@parkervcp.com)",
+    "description": "FiveM-Hosting-Egg, forked and rebuilt by SantosMods.dev, based on DEVBenSon and parker@parkervcp.com, updated to remove txAdmin deprecations, add new environment variables, and maintain forward compatibility under the MIT License.",
     "features": null,
     "docker_images": {
         "ghcr.io\/parkervcp\/yolks:debian": "ghcr.io\/parkervcp\/yolks:debian"
     },
     "file_denylist": [],
-    "startup": "$(pwd)\/alpine\/opt\/cfx-server\/ld-musl-x86_64.so.1 --library-path \"$(pwd)\/alpine\/usr\/lib\/v8\/:$(pwd)\/alpine\/lib\/:$(pwd)\/alpine\/usr\/lib\/\" -- $(pwd)\/alpine\/opt\/cfx-server\/FXServer +set citizen_dir $(pwd)\/alpine\/opt\/cfx-server\/citizen\/ +set sv_licenseKey {{FIVEM_LICENSE}} +set steam_webApiKey {{STEAM_WEBAPIKEY}} +set sv_maxplayers {{MAX_PLAYERS}} $( [ \"{{TXADMIN_ENABLE}}\" = \"1\" ] || printf '%s' '+exec server.cfg' )",
+    "startup": "$(pwd)\/alpine\/opt\/cfx-server\/ld-musl-x86_64.so.1 --library-path \"$(pwd)\/alpine\/usr\/lib\/v8\/:$(pwd)\/alpine\/lib\/:$(pwd)\/alpine\/usr\/lib\/\" -- $(pwd)\/alpine\/opt\/cfx-server\/FXServer +set citizen_dir $(pwd)\/alpine\/opt\/cfx-server\/citizen\/ +set sv_licenseKey {{FIVEM_LICENSE}} +set steam_webApiKey {{STEAM_WEBAPIKEY}} +set sv_maxplayers {{MAX_PLAYERS}} +set sv_hostname \"{{SERVER_HOSTNAME}}\" +sets sv_projectName \"{{PROJECT_NAME}}\" +sets sv_projectDesc \"{{PROJECT_DESC}}\" +set sv_enforceGameBuild {{GAME_BUILD}} $( [ \"{{TXADMIN_ENABLE}}\" = \"1\" ] || printf '%s' '+exec server.cfg' )",
     "config": {
         "files": "{\r\n    \"server.cfg\": {\r\n        \"parser\": \"file\",\r\n        \"find\": {\r\n            \"endpoint_add_tcp\": \"endpoint_add_tcp \\\"0.0.0.0:{{server.build.default.port}}\\\"\",\r\n            \"endpoint_add_udp\": \"endpoint_add_udp \\\"0.0.0.0:{{server.build.default.port}}\\\"\",\r\n            \"sv_hostname\": \"sv_hostname \\\"{{server.build.env.SERVER_HOSTNAME}}\\\"\",\r\n            \"set sv_licenseKey\": \"set sv_licenseKey {{server.build.env.FIVEM_LICENSE}}\",\r\n            \"set steam_webApiKey\": \"set steam_webApiKey {{server.build.env.STEAM_WEBAPIKEY}}\",\r\n            \"sv_maxclients\": \"sv_maxclients {{server.build.env.MAX_PLAYERS}}\"\r\n        }\r\n    }\r\n}",
         "startup": "{\r\n    \"done\": \"succeeded. Welcome!\"\r\n}",
@@ -29,7 +29,7 @@
     },
     "variables": [
         {
-            "name": "fivem license",
+            "name": "FiveM Licence",
             "description": "Required to start the server.\r\nGet it from https:\/\/portal.cfx.re\/",
             "env_variable": "FIVEM_LICENSE",
             "default_value": "fivem_license_here",
@@ -55,11 +55,11 @@
             "default_value": "My new FXServer!",
             "user_viewable": true,
             "user_editable": true,
-            "rules": "required|string",
+            "rules": "required|string|max:120",
             "field_type": "text"
         },
         {
-            "name": "fivem version",
+            "name": "FiveM Version",
             "description": "Build version to install.\r\nInvalid values fall back to the recommended build.",
             "env_variable": "FIVEM_VERSION",
             "default_value": "24769-315823736cfbc085104ca0d32779311cd2f1a5a8",
@@ -99,13 +99,33 @@
             "field_type": "text"
         },
         {
-            "name": "Enable txadmin",
+            "name": "Enable txAdmin",
             "description": "Enable txAdmin\r\nSet to 1 to enable.\r\nSet to 0 to disable.",
             "env_variable": "TXADMIN_ENABLE",
             "default_value": "1",
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "Project Name",
+            "description": "Set your server's Project Name.",
+            "env_variable": "PROJECT_NAME",
+            "default_value": "FX-Server",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:40",
+            "field_type": "text"
+        },
+        {
+            "name": "Server Game Build",
+            "description": "Set Game Build (https:\/\/docs.fivem.net\/docs\/server-manual\/server-commands\/#sv_enforcegamebuild-build)",
+            "env_variable": "GAME_BUILD",
+            "default_value": "3095",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:5",
             "field_type": "text"
         }
     ]
